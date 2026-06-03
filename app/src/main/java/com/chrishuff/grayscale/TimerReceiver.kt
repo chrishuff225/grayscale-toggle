@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 
 /**
  * Fires when a pause timer ends, restoring grayscale. Also exposes helpers to
@@ -14,7 +15,8 @@ class TimerReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
         Prefs.setPausedUntil(context, 0L)
-        GrayscaleManager.applyEffectiveState(context, null)
+        // Restore grayscale for whatever app is in front now, honoring exclusions.
+        GrayscaleManager.applyEffectiveState(context, GrayscaleAccessibilityService.lastForegroundPackage)
     }
 
     companion object {
@@ -31,16 +33,30 @@ class TimerReceiver : BroadcastReceiver() {
         fun startPause(c: Context, durationMillis: Long) {
             val until = System.currentTimeMillis() + durationMillis
             Prefs.setPausedUntil(c, until)
-            GrayscaleManager.applyEffectiveState(c, null)
+            GrayscaleManager.applyEffectiveState(c, GrayscaleAccessibilityService.lastForegroundPackage)
+            scheduleAlarm(c, until)
+        }
+
+        private fun scheduleAlarm(c: Context, until: Long) {
             val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, pendingIntent(c))
+            val pi = pendingIntent(c)
+            try {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, pi)
+                } else {
+                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, pi)
+                }
+            } catch (e: SecurityException) {
+                // Exact-alarm permission missing: fall back to an inexact alarm.
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, until, pi)
+            }
         }
 
         fun cancelPause(c: Context) {
             Prefs.setPausedUntil(c, 0L)
             val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             am.cancel(pendingIntent(c))
-            GrayscaleManager.applyEffectiveState(c, null)
+            GrayscaleManager.applyEffectiveState(c, GrayscaleAccessibilityService.lastForegroundPackage)
         }
     }
 }

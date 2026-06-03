@@ -7,6 +7,13 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- So the pause timer fires exactly on time, even in Doze. USE_EXACT_ALARM is
+         auto-granted; SCHEDULE_EXACT_ALARM is the pre-Android-13 equivalent. -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     <!-- So we can list installed launchable apps for the exclusion picker. -->
     <queries>
         <intent>
