@@ -1,6 +1,7 @@
 package com.chrishuff.grayscale
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -11,6 +12,7 @@ class GrayscaleAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        isRunning = true
         GrayscaleManager.applyEffectiveState(this, null)
     }
 
@@ -23,4 +25,21 @@ class GrayscaleAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {}
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        isRunning = false
+        return super.onUnbind(intent)
+    }
+
+    override fun onDestroy() {
+        isRunning = false
+        super.onDestroy()
+    }
+
+    companion object {
+        /** True while the system has this accessibility service bound and running. */
+        @Volatile
+        var isRunning: Boolean = false
+            private set
+    }
 }

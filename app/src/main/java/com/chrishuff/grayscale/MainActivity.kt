@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.provider.Settings
@@ -34,6 +35,15 @@ class MainActivity : AppCompatActivity() {
 
         b.btnEnableAccessibility.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
+        b.btnAppInfo.setOnClickListener {
+            startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", packageName, null)
+                )
+            )
         }
 
         b.btnStartPause.setOnClickListener { startPause() }
@@ -86,8 +96,24 @@ class MainActivity : AppCompatActivity() {
         b.cardPermission.visibility =
             if (GrayscaleManager.hasPermission(this)) View.GONE else View.VISIBLE
         b.textAdbCommand.text = adbCommand()
-        b.cardAccessibility.visibility =
-            if (isAccessibilityEnabled()) View.GONE else View.VISIBLE
+        // Accessibility service powers the per-app "keep in color" feature. Show the
+        // card unless the service is both enabled AND actually running.
+        val serviceListed = isAccessibilityEnabled()
+        val serviceRunning = GrayscaleAccessibilityService.isRunning
+        if (serviceListed && serviceRunning) {
+            b.cardAccessibility.visibility = View.GONE
+        } else {
+            b.cardAccessibility.visibility = View.VISIBLE
+            b.textAccessibilityDesc.text = if (!serviceListed) {
+                "Required for \"apps to keep in color\". Turn on Smart Grayscale under " +
+                    "Accessibility. If the switch is greyed out — common for apps installed " +
+                    "outside the Play Store — first open App info and choose \"Allow " +
+                    "restricted settings\", then come back and enable it."
+            } else {
+                "The service is switched on but isn't running yet. Toggle Smart Grayscale " +
+                    "off and back on in Accessibility settings."
+            }
+        }
 
         // Master switch (detach listener while setting the value programmatically).
         b.switchMaster.setOnCheckedChangeListener(null)
@@ -121,8 +147,9 @@ class MainActivity : AppCompatActivity() {
             b.btnCancelPause.visibility = View.GONE
         }
 
-        b.textStatus.text =
-            "Screen is currently " + if (GrayscaleManager.isGrayscaleOn(this)) "GRAYSCALE" else "COLOR"
+        val screen = if (GrayscaleManager.isGrayscaleOn(this)) "GRAYSCALE" else "COLOR"
+        val exclusions = if (serviceRunning) "active" else "inactive — enable the service above"
+        b.textStatus.text = "Screen is currently $screen\nApp exclusions: $exclusions"
     }
 
     private fun isAccessibilityEnabled(): Boolean {

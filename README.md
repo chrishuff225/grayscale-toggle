@@ -1,4 +1,4 @@
-# Grayscale
+# Smart Grayscale
 
 A tiny Android app that turns your phone's screen black & white (system-wide
 grayscale) and back, with two extras:
@@ -31,8 +31,11 @@ its own forever — no computer needed again.
    ```
 
    (The app shows this exact command with a "Copy" button if you forget.)
-3. In the app, tap **Open accessibility settings** and enable **Grayscale** — this
-   is what lets the "keep in color" app list work.
+3. In the app, tap **Open accessibility settings** and enable **Smart Grayscale** —
+   this is what lets the "keep in color" app list work. If the toggle is greyed out
+   (common for sideloaded apps on Android 13+), first open the app's **App info**
+   page, tap the **⋮** menu, and choose **"Allow restricted settings"**. The app has
+   a button that takes you straight there.
 
 ## Using it
 

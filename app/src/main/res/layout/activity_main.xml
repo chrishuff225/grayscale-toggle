@@ -99,6 +99,7 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/textAccessibilityDesc"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
@@ -107,10 +108,17 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnEnableAccessibility"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="Open accessibility settings" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAppInfo"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Switch greyed out? Allow restricted settings" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
