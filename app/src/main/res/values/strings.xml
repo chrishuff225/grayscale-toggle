@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Smart Grayscale</string>
+    <string name="app_name">Smart Gray</string>
     <string name="launcher_label">Smart Gray</string>
     <string name="settings">Settings</string>
     <string name="excluded_title">Apps to keep in color</string>

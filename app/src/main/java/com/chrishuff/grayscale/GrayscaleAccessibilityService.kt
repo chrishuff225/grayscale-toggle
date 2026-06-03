@@ -2,17 +2,18 @@ package com.chrishuff.grayscale
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 
 /**
  * Watches foreground app changes and applies grayscale immediately: excluded apps
- * go to color, everything else goes grayscale. This is the original, simple
- * behavior that works for the large majority of apps.
+ * go to color, everything else goes grayscale. This is the simple behavior that
+ * works for the large majority of apps.
  *
- * Note: a few apps that dislike a display change mid-launch (e.g. Focus Friend)
- * may close when switched to color. That trade-off is accepted here in favor of
- * reliable exclusions for every other app; such an app can simply be left
- * un-excluded (grayscale) if it misbehaves.
+ * Transient windows are ignored so they don't momentarily flip an excluded app:
+ *  - the on-screen keyboard (IME) — opening it inside an excluded app was flipping
+ *    the screen to grayscale and blocking input;
+ *  - the system UI (status bar, notification shade, volume panel).
  */
 class GrayscaleAccessibilityService : AccessibilityService() {
 
@@ -27,8 +28,17 @@ class GrayscaleAccessibilityService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString()
         if (pkg.isNullOrEmpty()) return
+        if (isTransientWindow(pkg)) return
         lastForegroundPackage = pkg
         GrayscaleManager.applyEffectiveState(this, pkg)
+    }
+
+    /** Keyboard and system windows are not a real foreground app change. */
+    private fun isTransientWindow(pkg: String): Boolean {
+        if (pkg == SYSTEM_UI_PACKAGE) return true
+        val ime = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
+        val imePackage = ime?.substringBefore('/')
+        return pkg == imePackage
     }
 
     override fun onInterrupt() {}
@@ -44,6 +54,8 @@ class GrayscaleAccessibilityService : AccessibilityService() {
     }
 
     companion object {
+        private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+
         /** True while the system has this accessibility service bound and running. */
         @Volatile
         var isRunning: Boolean = false

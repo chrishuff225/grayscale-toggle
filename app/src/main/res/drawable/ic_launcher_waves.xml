@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 8 tones of gray as stacked wavy bands, dark at top to light at bottom. -->
+    <path
+        android:fillColor="#212121"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#424242"
+        android:pathData="M0,14 Q27,8 54,14 Q81,20 108,14 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#616161"
+        android:pathData="M0,27 Q27,21 54,27 Q81,33 108,27 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#757575"
+        android:pathData="M0,41 Q27,35 54,41 Q81,47 108,41 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M0,54 Q27,48 54,54 Q81,60 108,54 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#BDBDBD"
+        android:pathData="M0,68 Q27,62 54,68 Q81,74 108,68 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#E0E0E0"
+        android:pathData="M0,81 Q27,75 54,81 Q81,87 108,81 L108,108 L0,108 Z" />
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M0,95 Q27,89 54,95 Q81,101 108,95 L108,108 L0,108 Z" />
+</vector>
