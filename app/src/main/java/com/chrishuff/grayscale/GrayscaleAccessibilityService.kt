@@ -10,27 +10,28 @@ import android.view.accessibility.AccessibilityEvent
  * Watches foreground app changes so excluded apps stay in color while everything
  * else is grayscale. The service keeps running in the background once enabled.
  *
- * Foreground changes are debounced: during a cold app launch the system fires a
- * burst of window events (launcher -> splash -> app -> transient system windows).
- * Writing the system color setting on every one of those caused apps that are
- * sensitive to display changes mid-launch (e.g. Focus Friend) to be killed. We
- * instead wait for the foreground to settle, then write the setting once.
+ * Two subtleties handled here:
+ *  - Repeat window events for the same app are ignored. Some apps (e.g. a focus
+ *    timer) fire window-state events constantly; without this guard a debounce
+ *    would reset forever and the toggle would never apply.
+ *  - Turning grayscale OFF for an excluded app is delayed briefly. Writing the
+ *    system color setting in the middle of an app's cold launch could kill apps
+ *    that are sensitive to display changes (e.g. Focus Friend), so we wait for
+ *    the launch to settle first. Turning grayscale back ON is done immediately.
  */
 class GrayscaleAccessibilityService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
-    private var pendingPackage: String? = null
+    private var currentPackage: String? = null
 
-    private val applyRunnable = Runnable {
-        val pkg = pendingPackage
-        lastForegroundPackage = pkg
-        GrayscaleManager.applyEffectiveState(this, pkg)
+    private val applyExcludedRunnable = Runnable {
+        GrayscaleManager.applyEffectiveState(this, currentPackage)
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         isRunning = true
-        GrayscaleManager.applyEffectiveState(this, lastForegroundPackage)
+        GrayscaleManager.applyEffectiveState(this, currentPackage)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -38,32 +39,44 @@ class GrayscaleAccessibilityService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString()
         if (pkg.isNullOrEmpty()) return
-        // Ignore transient overlays (status bar, shade, volume panel) so they don't
-        // flip an excluded app back to grayscale.
+        // Transient overlays (status bar, shade, volume panel) are not a real
+        // foreground app, so they must not flip an excluded app back to grayscale.
         if (IGNORED_PACKAGES.contains(pkg)) return
+        // Same app still in front: ignore repeat events so a pending toggle isn't
+        // reset over and over by apps that emit frequent window events.
+        if (pkg == currentPackage) return
 
-        pendingPackage = pkg
-        handler.removeCallbacks(applyRunnable)
-        handler.postDelayed(applyRunnable, DEBOUNCE_MS)
+        currentPackage = pkg
+        lastForegroundPackage = pkg
+        handler.removeCallbacks(applyExcludedRunnable)
+
+        if (GrayscaleManager.desiredState(this, pkg)) {
+            // Entering a non-excluded app: restore grayscale right away.
+            GrayscaleManager.applyEffectiveState(this, pkg)
+        } else {
+            // Entering an excluded app: wait for it to finish launching before
+            // switching the screen to color, so we don't interrupt it.
+            handler.postDelayed(applyExcludedRunnable, EXCLUDED_APP_DELAY_MS)
+        }
     }
 
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
         isRunning = false
-        handler.removeCallbacks(applyRunnable)
+        handler.removeCallbacks(applyExcludedRunnable)
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         isRunning = false
-        handler.removeCallbacks(applyRunnable)
+        handler.removeCallbacks(applyExcludedRunnable)
         super.onDestroy()
     }
 
     companion object {
-        /** Delay before reacting to a foreground change, to let launches settle. */
-        private const val DEBOUNCE_MS = 700L
+        /** Delay before switching an excluded app to color, to let its launch settle. */
+        private const val EXCLUDED_APP_DELAY_MS = 1000L
 
         private val IGNORED_PACKAGES = setOf("com.android.systemui")
 

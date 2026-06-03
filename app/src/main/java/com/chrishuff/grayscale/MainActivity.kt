@@ -105,12 +105,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             b.cardAccessibility.visibility = View.VISIBLE
             b.textAccessibilityDesc.text = if (!serviceListed) {
-                "Required for \"apps to keep in color\". Turn on Smart Grayscale under " +
+                "Required for \"apps to keep in color\". Turn on Smart Gray under " +
                     "Accessibility. If the switch is greyed out — common for apps installed " +
                     "outside the Play Store — first open App info and choose \"Allow " +
                     "restricted settings\", then come back and enable it."
             } else {
-                "The service is switched on but isn't running yet. Toggle Smart Grayscale " +
+                "The service is switched on but isn't running yet. Toggle Smart Gray " +
                     "off and back on in Accessibility settings."
             }
         }
