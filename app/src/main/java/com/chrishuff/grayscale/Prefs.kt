@@ -8,6 +8,7 @@ object Prefs {
     private const val KEY_MASTER = "master_enabled"
     private const val KEY_PAUSED_UNTIL = "paused_until"
     private const val KEY_EXCLUDED = "excluded_packages"
+    private const val KEY_DELAYED = "delayed_packages"
 
     private fun sp(c: Context) = c.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
@@ -31,5 +32,20 @@ object Prefs {
         val current = getExcluded(c).toMutableSet()
         if (excluded) current.add(pkg) else current.remove(pkg)
         sp(c).edit().putStringSet(KEY_EXCLUDED, current).apply()
+    }
+
+    /**
+     * Excluded packages that should wait briefly after launching before switching to
+     * color, for apps that dislike a display change mid-launch.
+     */
+    fun getDelayed(c: Context): Set<String> =
+        sp(c).getStringSet(KEY_DELAYED, emptySet())?.toSet() ?: emptySet()
+
+    fun isDelayed(c: Context, pkg: String): Boolean = getDelayed(c).contains(pkg)
+
+    fun setDelayedFor(c: Context, pkg: String, delayed: Boolean) {
+        val current = getDelayed(c).toMutableSet()
+        if (delayed) current.add(pkg) else current.remove(pkg)
+        sp(c).edit().putStringSet(KEY_DELAYED, current).apply()
     }
 }

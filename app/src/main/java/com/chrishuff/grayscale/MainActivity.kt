@@ -2,6 +2,7 @@ package com.chrishuff.grayscale
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -33,9 +34,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Command copied", Toast.LENGTH_SHORT).show()
         }
 
-        b.btnEnableAccessibility.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }
+        b.btnEnableAccessibility.setOnClickListener { openAccessibilitySettings() }
 
         b.btnAppInfo.setOnClickListener {
             startActivity(
@@ -56,6 +55,25 @@ class MainActivity : AppCompatActivity() {
 
     private fun adbCommand(): String =
         "adb shell pm grant $packageName android.permission.WRITE_SECURE_SETTINGS"
+
+    /** Opens the system accessibility settings, deep-linked to Smart Gray's own
+     *  service entry where possible, falling back to the general list. */
+    private fun openAccessibilitySettings() {
+        val component = ComponentName(this, GrayscaleAccessibilityService::class.java).flattenToString()
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        val args = Bundle().apply { putString(":settings:fragment_args_key", component) }
+        intent.putExtra(":settings:fragment_args_key", component)
+        intent.putExtra(":settings:show_fragment_args", args)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Couldn't open accessibility settings", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     private fun startPause() {
         val minutes = b.editMinutes.text.toString().toLongOrNull()

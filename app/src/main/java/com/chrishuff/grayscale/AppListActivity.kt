@@ -9,9 +9,9 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.chrishuff.grayscale.databinding.ActivityAppListBinding
 import com.chrishuff.grayscale.databinding.ItemAppBinding
+import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,7 +45,8 @@ class AppListActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val apps = withContext(Dispatchers.IO) { queryApps() }
             val excluded = Prefs.getExcluded(this@AppListActivity).toMutableSet()
-            b.recycler.adapter = AppAdapter(apps, excluded)
+            val delayed = Prefs.getDelayed(this@AppListActivity).toMutableSet()
+            b.recycler.adapter = AppAdapter(apps, excluded, delayed)
             b.progress.visibility = View.GONE
         }
     }
@@ -66,7 +67,8 @@ class AppListActivity : AppCompatActivity() {
 
     private inner class AppAdapter(
         private val items: List<AppEntry>,
-        private val excluded: MutableSet<String>
+        private val excluded: MutableSet<String>,
+        private val delayed: MutableSet<String>
     ) : RecyclerView.Adapter<AppAdapter.VH>() {
 
         inner class VH(val v: ItemAppBinding) : RecyclerView.ViewHolder(v.root)
@@ -80,12 +82,26 @@ class AppListActivity : AppCompatActivity() {
             val item = items[position]
             holder.v.icon.setImageDrawable(item.icon)
             holder.v.label.text = item.label
+
+            // Detach listeners before setting state (recycled views).
             holder.v.checkbox.setOnCheckedChangeListener(null)
-            holder.v.checkbox.isChecked = excluded.contains(item.pkg)
+            holder.v.delayCheck.setOnCheckedChangeListener(null)
+
+            val isExcluded = excluded.contains(item.pkg)
+            holder.v.checkbox.isChecked = isExcluded
+            holder.v.delayCheck.isChecked = delayed.contains(item.pkg)
+            holder.v.delayCheck.visibility = if (isExcluded) View.VISIBLE else View.GONE
+
             holder.v.root.setOnClickListener { holder.v.checkbox.toggle() }
-            holder.v.checkbox.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) excluded.add(item.pkg) else excluded.remove(item.pkg)
-                Prefs.setExcludedFor(this@AppListActivity, item.pkg, isChecked)
+
+            holder.v.checkbox.setOnCheckedChangeListener { _, checked ->
+                if (checked) excluded.add(item.pkg) else excluded.remove(item.pkg)
+                Prefs.setExcludedFor(this@AppListActivity, item.pkg, checked)
+                holder.v.delayCheck.visibility = if (checked) View.VISIBLE else View.GONE
+            }
+            holder.v.delayCheck.setOnCheckedChangeListener { _, checked ->
+                if (checked) delayed.add(item.pkg) else delayed.remove(item.pkg)
+                Prefs.setDelayedFor(this@AppListActivity, item.pkg, checked)
             }
         }
     }
