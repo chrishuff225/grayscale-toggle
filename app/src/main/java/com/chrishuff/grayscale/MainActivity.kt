@@ -2,7 +2,6 @@ package com.chrishuff.grayscale
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -34,16 +33,8 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Command copied", Toast.LENGTH_SHORT).show()
         }
 
-        b.btnEnableAccessibility.setOnClickListener { openAccessibilitySettings() }
-
-        b.btnAppInfo.setOnClickListener {
-            startActivity(
-                Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.fromParts("package", packageName, null)
-                )
-            )
-        }
+        b.btnWatchVideoPermission.setOnClickListener { openSetupVideo() }
+        b.btnWatchVideoAccessibility.setOnClickListener { openSetupVideo() }
 
         b.btnStartPause.setOnClickListener { startPause() }
 
@@ -56,22 +47,12 @@ class MainActivity : AppCompatActivity() {
     private fun adbCommand(): String =
         "adb shell pm grant $packageName android.permission.WRITE_SECURE_SETTINGS"
 
-    /** Opens the system accessibility settings, deep-linked to Smart Gray's own
-     *  service entry where possible, falling back to the general list. */
-    private fun openAccessibilitySettings() {
-        val component = ComponentName(this, GrayscaleAccessibilityService::class.java).flattenToString()
-        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        val args = Bundle().apply { putString(":settings:fragment_args_key", component) }
-        intent.putExtra(":settings:fragment_args_key", component)
-        intent.putExtra(":settings:show_fragment_args", args)
+    /** Opens the setup video that walks through granting the needed permissions. */
+    private fun openSetupVideo() {
         try {
-            startActivity(intent)
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://youtube.com/shorts/F_CW-0T-QzA")))
         } catch (e: Exception) {
-            try {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Couldn't open accessibility settings", Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(this, "Couldn't open the video", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -123,13 +104,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             b.cardAccessibility.visibility = View.VISIBLE
             b.textAccessibilityDesc.text = if (!serviceListed) {
-                "Required for \"apps to keep in color\". Turn on Smart Gray under " +
-                    "Accessibility. If the switch is greyed out — common for apps installed " +
-                    "outside the Play Store — first open App info and choose \"Allow " +
-                    "restricted settings\", then come back and enable it."
+                "Required for \"apps to keep in color\". Watch the setup video to enable " +
+                    "Smart Gray in Accessibility — it also covers the \"Allow restricted " +
+                    "settings\" step that sideloaded apps need."
             } else {
-                "The service is switched on but isn't running yet. Toggle Smart Gray " +
-                    "off and back on in Accessibility settings."
+                "The service is enabled but not running yet. Toggle it off and back on in " +
+                    "Accessibility — the setup video shows how."
             }
         }
 

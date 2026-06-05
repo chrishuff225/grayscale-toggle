@@ -50,14 +50,30 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="Grayscale can't be controlled until this permission is granted. Connect your phone to a computer with ADB and run this command once:"
+                        android:text="Smart Gray needs a couple of permissions before it can work. Watch this short video to set them up manually:"
+                        android:textColor="#5D4037" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnWatchVideoPermission"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="▶  Watch setup video"
+                        tools:ignore="HardcodedText"
+                        xmlns:tools="http://schemas.android.com/tools" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="For reference, the ADB command the video uses:"
                         android:textColor="#5D4037" />
 
                     <TextView
                         android:id="@+id/textAdbCommand"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:background="#FFFFFFFF"
                         android:fontFamily="monospace"
                         android:padding="10dp"
@@ -68,9 +84,10 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnCopyCommand"
+                        style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:text="Copy command" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -103,22 +120,17 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="Needed so the app knows which app is open and can keep your excluded apps in color."
+                        android:text="Needed so the app knows which app is open and can keep your excluded apps in color. The setup video shows how to turn it on."
                         android:textColor="#1565C0" />
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnEnableAccessibility"
+                        android:id="@+id/btnWatchVideoAccessibility"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Open accessibility settings" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnAppInfo"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Switch greyed out? Allow restricted settings" />
+                        android:text="▶  Watch setup video"
+                        tools:ignore="HardcodedText"
+                        xmlns:tools="http://schemas.android.com/tools" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

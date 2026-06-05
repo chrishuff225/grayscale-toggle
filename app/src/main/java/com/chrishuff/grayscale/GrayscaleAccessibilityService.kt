@@ -2,30 +2,32 @@ package com.chrishuff.grayscale
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Watches foreground app changes and applies grayscale immediately: excluded apps
- * go to color, everything else goes grayscale. This is the simple behavior that
- * works for the large majority of apps.
+ * Watches foreground app changes and applies grayscale. Excluded apps go to color
+ * immediately; everything else goes (back) to grayscale after a short delay.
  *
- * Some transitions need special handling because writing the system color setting
- * mid-animation interferes with them:
- *  - Transient windows (keyboard / IME and system UI) are ignored entirely.
- *  - The launcher also hosts the Recents/Overview animation, so the switch is
- *    delayed briefly when entering it (otherwise Recents fails to open).
- *  - Excluded apps the user opted into a per-app delay launch in grayscale and are
- *    switched to color after a few seconds.
+ * Why the asymmetry:
+ *  - Turning grayscale ON writes the system color setting. Doing that the instant a
+ *    transition starts (notably the Recents/Overview animation, which the launcher
+ *    drives) cancels the transition. Delaying the ON write lets the animation finish.
+ *    It is also a no-op whenever the screen is already grayscale, so the delay is only
+ *    ever visible when coming from a color (excluded) app.
+ *  - Turning grayscale OFF for an excluded app is done immediately so exclusions feel
+ *    instant (unless the user opted that app into the per-app delay).
+ *
+ * Transient windows (keyboard / IME and system UI) and repeat events for the same app
+ * are ignored so they never flip an excluded app while you use it.
  */
 class GrayscaleAccessibilityService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var pendingApply: Runnable? = null
-    private var homePackage: String? = null
+    private var lastHandledPackage: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -39,16 +41,20 @@ class GrayscaleAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString()
         if (pkg.isNullOrEmpty()) return
         if (isTransientWindow(pkg)) return
+        if (pkg == lastHandledPackage) return
 
+        lastHandledPackage = pkg
         lastForegroundPackage = pkg
         cancelPendingApply()
 
+        val desired = GrayscaleManager.desiredState(this, pkg)
         val delayMs = when {
-            // Entering the launcher (which also drives the Recents/Overview animation):
-            // wait for the transition to settle before touching the color setting.
-            isHome(pkg) -> LAUNCHER_DELAY_MS
-            // Excluded apps the user opted into a per-app delay.
-            !GrayscaleManager.desiredState(this, pkg) && Prefs.isDelayed(this, pkg) -> EXCLUDED_DELAY_MS
+            // Excluded app the user opted into a per-app delay: stay grayscale, then color.
+            !desired && Prefs.isDelayed(this, pkg) -> EXCLUDED_DELAY_MS
+            // Entering a non-excluded app (turning grayscale back on): delay so we don't
+            // write the color setting mid-transition. No-op when already grayscale.
+            desired -> TURN_ON_DELAY_MS
+            // Entering an excluded app: switch to color immediately.
             else -> 0L
         }
 
@@ -73,19 +79,6 @@ class GrayscaleAccessibilityService : AccessibilityService() {
         return pkg == ime?.substringBefore('/')
     }
 
-    private fun isHome(pkg: String): Boolean {
-        if (homePackage == null) {
-            homePackage = try {
-                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-                packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                    ?.activityInfo?.packageName
-            } catch (e: Exception) {
-                null
-            }
-        }
-        return pkg == homePackage
-    }
-
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -102,7 +95,7 @@ class GrayscaleAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
-        private const val LAUNCHER_DELAY_MS = 700L
+        private const val TURN_ON_DELAY_MS = 400L
         private const val EXCLUDED_DELAY_MS = 5000L
 
         /** True while the system has this accessibility service bound and running. */
