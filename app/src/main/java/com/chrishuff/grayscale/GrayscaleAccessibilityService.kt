@@ -8,20 +8,13 @@ import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Watches foreground app changes and applies grayscale. Excluded apps go to color
- * immediately; everything else goes (back) to grayscale after a short delay.
+ * Watches foreground app changes and applies grayscale: excluded apps go to color,
+ * other apps go to grayscale.
  *
- * Why the asymmetry:
- *  - Turning grayscale ON writes the system color setting. Doing that the instant a
- *    transition starts (notably the Recents/Overview animation, which the launcher
- *    drives) cancels the transition. Delaying the ON write lets the animation finish.
- *    It is also a no-op whenever the screen is already grayscale, so the delay is only
- *    ever visible when coming from a color (excluded) app.
- *  - Turning grayscale OFF for an excluded app is done immediately so exclusions feel
- *    instant (unless the user opted that app into the per-app delay).
- *
- * Transient windows (keyboard / IME and system UI) and repeat events for the same app
- * are ignored so they never flip an excluded app while you use it.
+ * Grayscale is only ever changed for real launchable ("drawer") apps. The home
+ * launcher — which also hosts the Recents/Overview animation — has no drawer icon,
+ * so it (and Recents, system UI and the keyboard) is ignored. That avoids writing
+ * the system color setting mid-transition, which was cancelling Recents.
  */
 class GrayscaleAccessibilityService : AccessibilityService() {
 
@@ -29,9 +22,13 @@ class GrayscaleAccessibilityService : AccessibilityService() {
     private var pendingApply: Runnable? = null
     private var lastHandledPackage: String? = null
 
+    private var managed: Set<String> = emptySet()
+    private var managedAt: Long = 0L
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         isRunning = true
+        managedPackages() // warm the cache
         GrayscaleManager.applyEffectiveState(this, lastForegroundPackage)
     }
 
@@ -40,28 +37,20 @@ class GrayscaleAccessibilityService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString()
         if (pkg.isNullOrEmpty()) return
-        if (isTransientWindow(pkg)) return
-        if (pkg == lastHandledPackage) return
+        if (pkg == packageName) return                 // our own app
+        if (pkg == currentImePackage()) return         // on-screen keyboard
+        if (!managedPackages().contains(pkg)) return   // launcher / Recents / system surfaces
+        if (pkg == lastHandledPackage) return          // repeat events for the same app
 
         lastHandledPackage = pkg
         lastForegroundPackage = pkg
         cancelPendingApply()
 
-        val desired = GrayscaleManager.desiredState(this, pkg)
-        val delayMs = when {
+        if (!GrayscaleManager.desiredState(this, pkg) && Prefs.isDelayed(this, pkg)) {
             // Excluded app the user opted into a per-app delay: stay grayscale, then color.
-            !desired && Prefs.isDelayed(this, pkg) -> EXCLUDED_DELAY_MS
-            // Entering a non-excluded app (turning grayscale back on): delay so we don't
-            // write the color setting mid-transition. No-op when already grayscale.
-            desired -> TURN_ON_DELAY_MS
-            // Entering an excluded app: switch to color immediately.
-            else -> 0L
-        }
-
-        if (delayMs > 0L) {
             val runnable = Runnable { GrayscaleManager.applyEffectiveState(this, pkg) }
             pendingApply = runnable
-            handler.postDelayed(runnable, delayMs)
+            handler.postDelayed(runnable, EXCLUDED_DELAY_MS)
         } else {
             GrayscaleManager.applyEffectiveState(this, pkg)
         }
@@ -72,11 +61,28 @@ class GrayscaleAccessibilityService : AccessibilityService() {
         pendingApply = null
     }
 
-    /** Keyboard and system windows are not a real foreground app change. */
-    private fun isTransientWindow(pkg: String): Boolean {
-        if (pkg == SYSTEM_UI_PACKAGE) return true
-        val ime = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
-        return pkg == ime?.substringBefore('/')
+    private fun currentImePackage(): String? =
+        Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
+            ?.substringBefore('/')
+
+    /** Packages that have a launcher (app-drawer) icon — i.e. real, openable apps. */
+    private fun managedPackages(): Set<String> {
+        val now = System.currentTimeMillis()
+        if (managedAt == 0L || now - managedAt > REFRESH_MS) {
+            val computed = try {
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                packageManager.queryIntentActivities(intent, 0)
+                    .mapNotNull { it.activityInfo?.packageName }
+                    .toHashSet()
+            } catch (e: Exception) {
+                null
+            }
+            if (!computed.isNullOrEmpty()) {
+                managed = computed
+                managedAt = now
+            }
+        }
+        return managed
     }
 
     override fun onInterrupt() {}
@@ -94,9 +100,8 @@ class GrayscaleAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
-        private const val TURN_ON_DELAY_MS = 400L
         private const val EXCLUDED_DELAY_MS = 5000L
+        private const val REFRESH_MS = 120_000L
 
         /** True while the system has this accessibility service bound and running. */
         @Volatile
